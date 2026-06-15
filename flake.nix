@@ -1,14 +1,11 @@
 {
-  description = "Run latest stable OrcaSlicer";
+  description = "OrcaSlicer wrapper flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-  }: let
+  outputs = {nixpkgs, ...}: let
     systems = [
       "x86_64-linux"
       "aarch64-linux"
@@ -17,34 +14,32 @@
     forAllSystems = f:
       nixpkgs.lib.genAttrs systems (
         system:
-          f system (import nixpkgs {
+          f (import nixpkgs {
             inherit system;
             config.allowUnfree = false;
           })
       );
   in {
-    packages = forAllSystems (system: pkgs: {
-      default = pkgs.orca-slicer.override {
+    packages = forAllSystems (pkgs: {
+      default = pkgs.callPackage ./package.nix {
         withNvidiaGLWorkaround = true;
       };
 
-      no-nvidia-workaround = pkgs.orca-slicer.override {
+      no-nvidia-workaround = pkgs.callPackage ./package.nix {
         withNvidiaGLWorkaround = false;
       };
     });
 
-    apps = forAllSystems (system: pkgs: {
+    apps = forAllSystems (pkgs: {
       default = {
         type = "app";
-        program = "${self.packages.${system}.default}/bin/orca-slicer";
+        program = "${pkgs.callPackage ./package.nix {withNvidiaGLWorkaround = true;}}/bin/orca-slicer";
       };
 
       no-nvidia-workaround = {
         type = "app";
-        program = "${self.packages.${system}.no-nvidia-workaround}/bin/orca-slicer";
+        program = "${pkgs.callPackage ./package.nix {withNvidiaGLWorkaround = false;}}/bin/orca-slicer";
       };
     });
-
-    formatter = forAllSystems (_system: pkgs: pkgs.nixfmt-rfc-style);
   };
 }
